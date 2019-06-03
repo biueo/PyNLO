@@ -42,7 +42,7 @@ class SSFM:
     METHOD_SSFM,METHOD_RK4IP = range(2)    
     def __init__(self,  local_error = 0.001, dz = 1e-5,
                  disable_Raman = False, disable_self_steepening = False,
-                 suppress_iteration = True, USE_SIMPLE_RAMAN = False,
+                 suppress_iteration = True, USE_SIMPLE_RAMAN = False,USE_MVM_RAMAN=True,
                  f_R = 0.18, f_R0 = 0.18, tau_1 = 0.0122, tau_2 = 0.0320):
         """
         This initialization function sets up the parameters of the SSFM.
@@ -56,6 +56,7 @@ class SSFM:
         self.disable_Raman = disable_Raman
         self.disable_self_steepening = disable_self_steepening
         self.USE_SIMPLE_RAMAN = USE_SIMPLE_RAMAN
+        self.USE_MVM_RAMAN=USE_MVM_RAMAN
 
         # Raman fraction; may change depending upon which calculation method 
         # is used 
@@ -200,22 +201,25 @@ class SSFM:
         self.CalculateRamanResponseFT(pulse_in)
 
         if raman_plots:
+            plt.figure(figsize=(10,10))
             plt.subplot(221)
-            plt.plot(self.omegas/(2*np.pi), np.abs(self.R - (1-self.f_R)),'bo')
-            plt.plot(self.omegas/(2*np.pi), np.abs(self.R0 - (1-self.f_R0)),'r')
+            plt.plot(self.omegas/(2*np.pi), np.abs(self.R - (1-self.f_R)),'b')
+            #plt.plot(self.omegas/(2*np.pi), np.abs(self.R0 - (1-self.f_R0)),'r')
             #plt.xlim([0,25])
             plt.title('Abs[R(w)]')
             plt.xlabel('THz')
             plt.subplot(222)
-            plt.plot(self.omegas/(2*np.pi), np.unwrap(np.angle(self.R-(1-self.f_R))),'bo')
-            plt.plot(self.omegas/(2*np.pi), np.unwrap(np.angle(self.R0-(1-self.f_R0))),'r')
-            plt.title('Angle[R(w)]')
+            plt.plot(self.omegas/(2*np.pi), (np.imag(self.R-(1-self.f_R))),'b')
+            #plt.plot(self.omegas/(2*np.pi), np.unwrap(np.angle(self.R0-(1-self.f_R0))),'r')
+            plt.xlim(0,40)
+            plt.ylim(0,np.max(np.imag(self.R-(1-self.f_R))))
+            plt.title('imag[R(w)]')
             plt.xlabel('THz')
             plt.subplot(223)
-            plt.plot(pulse_in.T*1000, ifftshift(np.real(self.IFFT_t(\
-                    self.R - (1-self.f_R)))), 'bo')
-            plt.plot(pulse_in.T*1000, ifftshift(np.real(self.IFFT_t(\
-                    self.R0 - (1-self.f_R0)))), 'r')
+            plt.plot(pulse_in.T_ps*1000, (np.real(self.IFFT_t_shift(\
+                    self.R - (1-self.f_R)))), 'b')
+            #plt.plot(pulse_in.T_ps*1000, ifftshift(np.real(self.IFFT_t(\
+            #        self.R0 - (1-self.f_R0)))), 'r')
             plt.title('Abs[R[t]]')
             plt.xlim([0,1000])
             plt.xlabel('fs')
@@ -277,6 +281,26 @@ class SSFM:
             #H_R    = pulse.dT*pulse.n*self.FFT_t(fftshift(RT))
             self.R[:]    = ((1.0-F_R) + pulse.time_window_ps*self.FFT_t_shift(F_R * RT))
 
+        elif self.USE_MVM_RAMAN:
+            T_s=pulse.T_ps*1e-12
+            c=3e8
+            RT=1*np.exp(-np.pi*c*17.37e2*T_s)*np.exp(-(np.pi*c*52.10e2)**2*T_s**2/4)*np.sin(2*np.pi*c*56.25e2*T_s)+\
+                11.4*np.exp(-np.pi*c*38.81e2*T_s)*np.exp(-(np.pi*c*110.42e2)**2*T_s**2/4)*np.sin(2*np.pi*c*100e2*T_s)+\
+                36.67*np.exp(-np.pi*c*58.33e2*T_s)*np.exp(-(np.pi*c*175e2)**2*T_s**2/4)*np.sin(2*np.pi*c*231.25e2*T_s)+\
+                67.67*np.exp(-np.pi*c*54.17e2*T_s)*np.exp(-(np.pi*c*162.5e2)**2*T_s**2/4)*np.sin(2*np.pi*c*362.5e2*T_s)+\
+                74*np.exp(-np.pi*c*45.11e2*T_s)*np.exp(-(np.pi*c*135.33e2)**2*T_s**2/4)*np.sin(2*np.pi*c*463e2*T_s)+\
+                4.5*np.exp(-np.pi*c*8.17e2*T_s)*np.exp(-(np.pi*c*24.5e2)**2*T_s**2/4)*np.sin(2*np.pi*c*497e2*T_s)+\
+                6.8*np.exp(-np.pi*c*13.83e2*T_s)*np.exp(-(np.pi*c*41.5e2)**2*T_s**2/4)*np.sin(2*np.pi*c*611.5e2*T_s)+\
+                4.6*np.exp(-np.pi*c*51.67e2*T_s)*np.exp(-(np.pi*c*155e2)**2*T_s**2/4)*np.sin(2*np.pi*c*691.67e2*T_s)+\
+                4.2*np.exp(-np.pi*c*19.83e2*T_s)*np.exp(-(np.pi*c*59.5e2)**2*T_s**2/4)*np.sin(2*np.pi*c*793.67e2*T_s)+\
+                4.5*np.exp(-np.pi*c*21.43e2*T_s)*np.exp(-(np.pi*c*64.3e2)**2*T_s**2/4)*np.sin(2*np.pi*c*835.5e2*T_s)+\
+                2.7*np.exp(-np.pi*c*50e2*T_s)*np.exp(-(np.pi*c*150e2)**2*T_s**2/4)*np.sin(2*np.pi*c*930e2*T_s)+\
+                3.1*np.exp(-np.pi*c*30.33e2*T_s)*np.exp(-(np.pi*c*91e2)**2*T_s**2/4)*np.sin(2*np.pi*c*1080e2*T_s)+\
+                3*np.exp(-np.pi*c*53.33e2*T_s)*np.exp(-(np.pi*c*160e2)**2*T_s**2/4)*np.sin(2*np.pi*c*1215e2*T_s);
+            RT[0:pulse.NPTS>>1]=0
+            RT[:]= RT / np.trapz(RT, T)
+            #H_R    = pulse.dT*pulse.n*self.FFT_t(fftshift(RT))
+            self.R[:]    = ((1.0-F_R) + pulse.time_window_ps*self.FFT_t_shift(F_R * RT))
         else:
         # Updated scheme from Lin & Agarwal 2006
             taub = 0.096
@@ -317,7 +341,7 @@ class SSFM:
         while dist>0.0:
             self.Ac[:] = self.A
             self.Af[:] = self.A
-            
+
             self.Ac[:] = self.Advance(self.Ac,2.0*dz,direction)
             self.Af[:] = self.Advance(self.Af,dz,direction)
             self.Af[:] = self.Advance(self.Af,dz,direction)
@@ -437,6 +461,7 @@ class SSFM:
         """Fourth-order Runge-Kutta in the interaction picture.
            J. Hult, J. Lightwave Tech. 25, 3770 (2007)."""                   
         self.A_I[:] = self.LinearStep(A,h,direction)  #Side effect: Rely on LinearStep to recalculate self.exp_D for h/2 and direction dir                
+        
         self.k1[:] = self.IFFT_t_2(self.exp_D*self.FFT_t_2(h*direction*self.NonlinearOperator(A)*A))
         self.k2[:] = h * direction * self.NonlinearOperator(self.A_I + self.k1/2.0)*\
                         (self.A_I + self.k1/2.0)
@@ -519,7 +544,7 @@ class SSFM:
               
         pulse_out = Pulse()        
         pulse_out.clone_pulse(pulse_in)
-        self.setup_fftw(pulse_in, fiber, output_power)
+        self.setup_fftw(pulse_in, fiber, output_power,raman_plots=False)
         self.load_fiber_parameters(pulse_in, fiber, output_power) 
         
 
