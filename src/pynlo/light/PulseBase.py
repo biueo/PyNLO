@@ -993,18 +993,24 @@ class Pulse:
             raise ValueError('Type \""%s\"" not recognized. Type must be \"xfrog\" or \"frog\".'%gate_type)
             
         # make a 2D array of E(time, delay)
-        E = amp * gate_function * np.exp(1j*(2 * np.pi * T * self.center_frequency_THz + phase) )
+        E = amp * gate_function * np.exp(1j*( phase) )
         
-        spectrogram = np.fft.fft(E, axis=0)
-        freqs = np.fft.fftfreq(np.shape(E)[0], t[1]-t[0])
+        spectrogram =np.fft.ifftshift(np.fft.ifft(E,axis=0),axes=0)
+        freqs = self.F_THz
         
         DELAYS, FREQS = np.meshgrid(delay, freqs)
+        # E = amp * gate_function * np.exp(1j*(2 * np.pi * T * self.center_frequency_THz + phase) )
         
-        # just take positive frequencies:
-        h = np.shape(spectrogram)[0]
-        spectrogram = spectrogram[:h//2]
-        DELAYS      = DELAYS[:h//2]
-        FREQS       = FREQS[:h//2]
+        # spectrogram = np.fft.fft(E, axis=0)
+        # freqs = np.fft.fftfreq(np.shape(E)[0], t[1]-t[0])
+        
+        # DELAYS, FREQS = np.meshgrid(delay, freqs)
+        
+        # # just take positive frequencies:
+        # h = np.shape(spectrogram)[0]
+        # spectrogram = spectrogram[:h//2]
+        # DELAYS      = DELAYS[:h//2]
+        # FREQS       = FREQS[:h//2]
                 
         # calculate the extent to make it easy to plot:
         extent = (np.min(DELAYS), np.max(DELAYS), np.min(FREQS), np.max(FREQS))

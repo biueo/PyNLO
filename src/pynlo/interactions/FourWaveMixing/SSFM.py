@@ -43,7 +43,7 @@ class SSFM:
     def __init__(self,  local_error = 0.001, dz = 1e-5,
                  disable_Raman = False, disable_self_steepening = False,
                  suppress_iteration = True, USE_SIMPLE_RAMAN = False,USE_MVM_RAMAN=True,
-                 f_R = 0.18, f_R0 = 0.18, tau_1 = 0.0122, tau_2 = 0.0320):
+                 f_R = 0.18, f_R0 = 0.18, tau_1 = 0.0122, tau_2 = 0.0320,tau_s=None):
         """
         This initialization function sets up the parameters of the SSFM.
         """
@@ -66,6 +66,7 @@ class SSFM:
         
         self.tau_1 = tau_1
         self.tau_2 = tau_2
+        self.tau_s=tau_s
         self.dz = dz
         self.dz_min = 1e-12
         self.suppress_iteration = suppress_iteration
@@ -452,7 +453,9 @@ class SSFM:
             self.dA[:]      = self.Deriv(self.Aw)
             self.dA2[:]     = self.Deriv(self.A2w)
             self.dR_A2[:]   = self.IFFT_t(self.R*self.FFT_t(self.dA2))
-        
+            if self.tau_s:
+                return 1j*self.gamma*self.R_A2 - (self.gamma*self.tau_s)* \
+                   (self.dR_A2 + np.where(np.abs(A)>1.0E-15,self.dA*self.R_A2/(1.0e-20+A),0.0))
             return 1j*self.gamma*self.R_A2 - (self.gamma/self.w0)* \
                    (self.dR_A2 + np.where(np.abs(A)>1.0E-15,self.dA*self.R_A2/(1.0e-20+A),0.0))
 
